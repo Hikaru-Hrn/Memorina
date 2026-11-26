@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
 
     private var firstOpenCard: ImageView? = null
-    private var isChecking = false
-    private var matchedPairs = 0
+    private var openCardsCount = 0
+    private val catViews = ArrayList<ImageView>(16)
 
     private val deck = listOf(
         R.drawable.card_clubs_2, R.drawable.card_clubs_3, R.drawable.card_clubs_4,
@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         val selectedFaces = deck.shuffled().take(8)
         val pairs = (selectedFaces + selectedFaces).shuffled()
 
-        val catViews = ArrayList<ImageView>(16)
+        catViews.clear()
         for (faceResId in pairs) {
             catViews.add(
                 ImageView(applicationContext).apply {
@@ -84,30 +84,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val colorListener = View.OnClickListener { v ->
-        if (isChecking) return@OnClickListener
         val card = v as ImageView
-        card.setImageResource(card.tag as Int)
-        card.isClickable = false
+        when (openCardsCount) {
+            0 -> {
+                card.setImageResource(card.tag as Int)
+                card.isClickable = false
+                firstOpenCard = card
+                openCardsCount = 1
+            }
+            1 -> {
+                card.setImageResource(card.tag as Int)
+                card.isClickable = false
+                openCardsCount = 2
+                val first = firstOpenCard ?: return@OnClickListener
+                firstOpenCard = null
 
-        val first = firstOpenCard
-        if (first == null) {
-            firstOpenCard = card
-        } else {
-            firstOpenCard = null
-            if (first.tag == card.tag) {
-                matchedPairs++
-                if (matchedPairs == 8) {
-                    Toast.makeText(this, "Вы выиграли!", Toast.LENGTH_LONG).show()
-                }
-            } else {
-                isChecking = true
                 lifecycleScope.launch {
                     delay(1000)
-                    first.setImageResource(R.drawable.card_back)
-                    card.setImageResource(R.drawable.card_back)
-                    first.isClickable = true
-                    card.isClickable = true
-                    isChecking = false
+                    if (first.tag == card.tag) {
+                        first.visibility = View.INVISIBLE
+                        card.visibility = View.INVISIBLE
+                        if (catViews.all { it.visibility == View.INVISIBLE }) {
+                            Toast.makeText(this@MainActivity, "Вы выиграли!", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        first.setImageResource(R.drawable.card_back)
+                        card.setImageResource(R.drawable.card_back)
+                        first.isClickable = true
+                        card.isClickable = true
+                    }
+                    openCardsCount = 0
                 }
             }
         }
